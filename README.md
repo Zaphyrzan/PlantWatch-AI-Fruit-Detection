@@ -189,7 +189,7 @@ pip install -r requirements.txt
 ### Run the Application
 
 ```bash
-python app_4.py
+python main.py
 ```
 
 Open http://127.0.0.1:5000 in your browser.
@@ -202,7 +202,7 @@ Open http://127.0.0.1:5000 in your browser.
 
 ```
 Banana-Ripeness-Detection/
-├── app_4.py                    # Main Flask application
+├── main.py                     # Main Flask application
 ├── train_banana_model.py       # Model training script
 ├── convert_to_yolo.py          # Dataset conversion utility
 ├── requirements.txt            # Python dependencies
