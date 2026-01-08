@@ -1,28 +1,46 @@
-from flask import Flask, render_template, request, redirect, url_for, Response, jsonify
-from werkzeug.utils import secure_filename
+from flask import Flask, render_template, request, Response, jsonify
 import cv2
 from ultralytics import YOLO
 import numpy as np
 from PIL import Image
-import io
 import base64
 
 app = Flask(__name__)
 
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
-
-# Load YOLO model for fruit detection
-fruit_detection_model = YOLO("/config/workspace/weights_3/best.pt")  # Change this path to the path of your YOLO model
-banana_disease_detection_model = YOLO(
-    "/config/workspace/train2/weights/best.pt")  # Path to YOLOv8 model for banana disease detection
-mango_disease_detection_model = YOLO(
-    "/config/workspace/train/weights/best.pt")  # Path to YOLOv8 model for mango disease detection
-pomogranate_disease_detection_model = YOLO(
-    "/config/workspace/train4/weights/best.pt")  # Path to YOLOv8 model for pomogranate disease detection
+# Load YOLO model for banana ripeness detection
+banana_detection_model = YOLO("weights_3/best.pt")  # Path to YOLO model for banana detection
 
 
-def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+def get_harvestability_info(ripeness_status):
+    """
+    Returns harvestability information based on the ripeness status of the banana.
+    """
+    ripeness_lower = ripeness_status.lower()
+    
+    if ripeness_lower in ['ripe', 'ripen', 'yellow']:
+        return {
+            'status': 'Harvestable and Consumable',
+            'recommendation': 'This banana is at its peak ripeness. Perfect for immediate consumption or sale.',
+            'color': '#28a745'  # Green
+        }
+    elif ripeness_lower in ['unripe', 'raw', 'green', 'underripe']:
+        return {
+            'status': 'Not Ready for Harvest',
+            'recommendation': 'This banana needs more time to ripen. Estimated time to ripeness: 3-5 days depending on storage conditions. Store at room temperature (20-25°C) to accelerate ripening.',
+            'color': '#ffc107'  # Yellow/Warning
+        }
+    elif ripeness_lower in ['overripe', 'over-ripe', 'spoiled', 'rotten']:
+        return {
+            'status': 'Past Optimal Harvest Time',
+            'recommendation': 'This banana is overripe. Not ideal for fresh consumption but can still be used for baking, smoothies, or compost. Consume within 1-2 days if still edible.',
+            'color': '#dc3545'  # Red
+        }
+    else:
+        return {
+            'status': 'Unknown Ripeness',
+            'recommendation': 'Unable to determine ripeness status. Please inspect manually.',
+            'color': '#6c757d'  # Gray
+        }
 
 
 @app.route('/')
@@ -55,7 +73,7 @@ def detect_objects():
     image = cv2.imdecode(image_array, cv2.IMREAD_COLOR)
 
     # Perform object detection using YOLO
-    results = fruit_detection_model(image)
+    results = banana_detection_model(image)
 
     # Extract detection results
     detected_objects = []
@@ -66,72 +84,19 @@ def detect_objects():
         confs = result.boxes.conf.float().cpu().tolist()  # probabilities of classes
 
         for box, cls, conf in zip(boxes, clss, confs):
-            detected_objects.append({'class': names[cls], 'bbox': box.tolist(), 'confidence': conf})
+            class_name = names[cls]
+            # Extract ripeness status (first word) from class name
+            ripeness_status = class_name.split(' ')[0] if ' ' in class_name else class_name
+            harvestability = get_harvestability_info(ripeness_status)
+            
+            detected_objects.append({
+                'class': class_name, 
+                'bbox': box.tolist(), 
+                'confidence': conf,
+                'harvestability': harvestability
+            })
 
     return jsonify(detected_objects)
-
-
-@app.route('/disease_detection')
-def disease_detection():
-    return render_template('disease_detection.html')
-
-
-@app.route('/banana_detection', methods=['GET', 'POST'])
-def banana_detection():
-    if request.method == 'POST':
-        file = request.files['file']
-        if file and allowed_file(file.filename):
-            img = Image.open(io.BytesIO(file.read())).convert("RGB")
-            class_names = detect_disease(banana_disease_detection_model, img)
-            img_str = image_to_base64(img)
-            return render_template('uploaded_image.html', img_str=img_str, class_names=class_names)
-    return render_template('banana_detection.html')
-
-
-@app.route('/mango_detection', methods=['GET', 'POST'])
-def mango_detection():
-    if request.method == 'POST':
-        file = request.files['file']
-        if file and allowed_file(file.filename):
-            img = Image.open(io.BytesIO(file.read())).convert("RGB")
-            class_names = detect_disease(mango_disease_detection_model, img)
-            img_str = image_to_base64(img)
-            return render_template('uploaded_image.html', img_str=img_str, class_names=class_names)
-    return render_template('mango_detection.html')
-
-@app.route('/pomogranate_detection', methods=['GET', 'POST'])
-def pomogranate_detection():
-    if request.method == 'POST':
-        file = request.files['file']
-        if file and allowed_file(file.filename):
-            img = Image.open(io.BytesIO(file.read())).convert("RGB")
-            class_names = detect_disease(pomogranate_disease_detection_model, img)
-            img_str = image_to_base64(img)
-            return render_template('uploaded_image.html', img_str=img_str, class_names=class_names)
-    return render_template('pomogranate_detection.html')
-
-
-def detect_disease(model, image):
-    result = model(image)
-    class_names = []
-    for result in result:
-        probs = result.probs
-        class_index = probs.top1
-        class_name = result.names[class_index]
-        score = float(probs.top1conf.cpu().numpy())
-        class_names.append(class_name)
-    return class_names
-
-
-def image_to_base64(image):
-    buffered = io.BytesIO()
-    image.save(buffered, format="JPEG")
-    return base64.b64encode(buffered.getvalue()).decode()
-
-
-@app.route('/uploads/<filename>')
-def uploaded_image(filename):
-    return render_template('uploaded_image.html', filename=filename)
 
 
 def generate_frames():
@@ -141,7 +106,7 @@ def generate_frames():
         if not success:
             break
         else:
-            fruit_results = fruit_detection_model(frame)
+            fruit_results = banana_detection_model(frame)
             for result in fruit_results:
                 im_array = result.plot()
                 im = Image.fromarray(im_array[..., ::-1])

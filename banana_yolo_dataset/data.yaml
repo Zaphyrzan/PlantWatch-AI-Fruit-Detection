@@ -1,0 +1,17 @@
+# Banana Ripeness Detection Dataset
+# Converted from classification to YOLO object detection format
+
+path: H:\College Stuff\UTM\Semester 6\Fruit-Ripeness-and-Disease-Detection\banana_yolo_dataset
+train: train/images
+val: valid/images
+test: test/images
+
+# Number of classes
+nc: 4
+
+# Class names
+names:
+  0: Unripe Banana
+  1: Ripe Banana
+  2: Overripe Banana
+  3: Rotten Banana

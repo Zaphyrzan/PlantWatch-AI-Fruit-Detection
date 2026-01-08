@@ -3,208 +3,423 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fruit Detection</title>
+    <title>Banana Detection</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
+        * {
             margin: 0;
             padding: 0;
-            background-image:url({{url_for('static', filename='image.jpg')}});
-            background-repeat:no-repeat;
-            background-attachment:fixed;
-            background-size:100% 100%;
-            background-position:center;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
         }
         .container {
-            width: 90%;
+            max-width: 1200px;
             margin: 0 auto;
-            padding: 20px;
-            box-sizing: border-box;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
+        }
+        header {
+            text-align: center;
+            margin-bottom: 20px;
         }
         h1 {
-            text-align: center;
-            font-size: 36px;
-            color: #007bff;
-            margin-bottom: 20px;
-            background: linear-gradient(45deg, #ff7300, #ff0000);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+            font-size: 2.5rem;
+            color: white;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            margin-bottom: 5px;
+        }
+        .subtitle {
+            color: rgba(255,255,255,0.9);
+            font-size: 1rem;
+        }
+        .main-content {
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+        }
+        .video-section {
+            flex: 1;
+            max-width: 500px;
         }
         .video-container {
-            width: 100%;
-            position: relative;
-            padding-top: 100%; /* 1:1 Aspect Ratio (Square) */
+            background: #000;
+            border-radius: 15px;
             overflow: hidden;
-            margin-bottom: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            aspect-ratio: 4/3;
+            position: relative;
         }
         #video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        #overlay {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
+            pointer-events: none;
         }
-        .detected-info-container {
-            width: 100%;
-            padding: 20px;
-            background: #f8f9fa;
-            border-radius: 10px;
-            box-sizing: border-box;
+        .detection-section {
+            flex: 1;
+            max-width: 500px;
         }
-        .detected-info-container h2 {
-            text-align: center;
+        .detection-card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        .detection-card h2 {
+            color: #333;
             margin-bottom: 20px;
-            background: #007bff;
-            color: #fff;
-            padding: 10px;
-            border-radius: 5px;
-            font-size: 24px; /* Increased font size */
+            padding-bottom: 10px;
+            border-bottom: 3px solid #667eea;
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
-        .detected-objects p {
-            font-size: 18px; /* Increased font size */
+        .detected-objects {
+            min-height: 150px;
+        }
+        .detection-item {
+            background: linear-gradient(135deg, #f5f7fa 0%, #e4e8eb 100%);
+            border-radius: 10px;
+            padding: 15px;
             margin-bottom: 15px;
-            background: #e9ecef;
-            padding: 10px;
+            border-left: 4px solid #667eea;
+        }
+        .detection-item .fruit-name {
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .detection-item .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 0.95rem;
+        }
+        .detection-item .label {
+            color: #666;
+        }
+        .detection-item .value {
+            font-weight: 600;
+            color: #333;
+        }
+        .harvestability-badge {
+            display: inline-block;
+            padding: 8px 15px;
+            border-radius: 20px;
+            color: white;
+            font-weight: bold;
+            font-size: 0.9rem;
+            margin-top: 10px;
+            text-align: center;
+            width: 100%;
+        }
+        .recommendation {
+            background: #f8f9fa;
+            border-left: 3px solid #667eea;
+            padding: 12px;
+            margin-top: 12px;
             border-radius: 5px;
+            font-size: 0.9rem;
+            color: #555;
+        }
+        .no-detection {
+            text-align: center;
+            color: #888;
+            padding: 40px 20px;
+        }
+        .no-detection .icon {
+            font-size: 3rem;
+            margin-bottom: 10px;
         }
         .back-btn {
-            margin-top: 20px;
-            text-align: center;
-        }
-        .back-btn a {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
             text-decoration: none;
-            color: #007bff;
-            font-weight: bold;
-            transition: color 0.3s;
-            font-size: 20px; /* Increased font size */
-            display: inline-block;
-            background-color: #f8f9fa;
-            padding: 10px 20px;
-            border-radius: 5px;
+            padding: 12px 25px;
+            border-radius: 25px;
+            font-weight: 600;
+            margin-top: 20px;
+            transition: transform 0.2s, box-shadow 0.2s;
         }
-        .back-btn a:hover {
-            color: #0056b3;
+        .back-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #28a745;
+            font-size: 0.85rem;
+            margin-top: 10px;
+            background: rgba(255,255,255,0.9);
+            padding: 8px 15px;
+            border-radius: 20px;
+            width: fit-content;
+        }
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background: #28a745;
+            border-radius: 50%;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
         }
 
-        /* Media Query for Laptop Screens */
-        @media screen and (min-width: 768px) {
-            .video-container {
-                width: 50%;
-                margin-right: 20px;
-                margin-bottom: 0;
+        /* Responsive Design */
+        @media screen and (max-width: 900px) {
+            .main-content {
+                flex-direction: column;
+                align-items: center;
             }
-            .detected-info-container {
-                width: 45%;
+            .video-section, .detection-section {
+                max-width: 100%;
+                width: 100%;
+            }
+            h1 {
+                font-size: 1.8rem;
             }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Fruit Detection</h1>
-        <div class="video-container">
-            <video id="video" autoplay playsinline></video>
-        </div>
-        <div class="detected-info-container">
-            <h2>Detection Info</h2>
-            <div class="detected-objects" id="detected-objects"></div>
-            <div class="back-btn">
-                <a href="/">Back to Home</a>
+        <header>
+            <h1>🍌 Banana Ripeness Detection</h1>
+            <p class="subtitle">Point your camera at a banana to analyze its ripeness</p>
+        </header>
+        
+        <div class="main-content">
+            <div class="video-section">
+                <div class="video-container">
+                    <video id="video" autoplay playsinline></video>
+                    <canvas id="overlay"></canvas>
+                </div>
+                <div class="status-indicator">
+                    <span class="status-dot"></span>
+                    <span>Camera Active - Scanning...</span>
+                </div>
+            </div>
+            
+            <div class="detection-section">
+                <div class="detection-card">
+                    <h2>📊 Detection Results</h2>
+                    <div class="detected-objects" id="detected-objects">
+                        <div class="no-detection">
+                            <div class="icon">🔍</div>
+                            <p>No banana detected yet.<br>Point your camera at a banana.</p>
+                        </div>
+                    </div>
+                    <a href="/" class="back-btn">← Back to Home</a>
+                </div>
             </div>
         </div>
     </div>
 
     <script>
         const video = document.getElementById('video');
+        const overlay = document.getElementById('overlay');
+        const ctx = overlay.getContext('2d');
         const detectedObjectsElement = document.getElementById('detected-objects');
+        let currentDetections = [];
 
-        // Function to initialize the camera feed and object detection
         function initializeCamera() {
             navigator.mediaDevices.enumerateDevices()
                 .then(devices => {
-                    // Find the video input devices
                     const videoDevices = devices.filter(device => device.kind === 'videoinput');
-
-                    // Check if any video devices are found
                     if (videoDevices.length > 0) {
-                        // Find the back camera device (if available)
                         const backCamera = videoDevices.find(device => device.label.toLowerCase().includes('back'));
-
-                        // Set constraints to use the back camera
                         const constraints = {
                             video: {
                                 facingMode: backCamera ? { exact: 'environment' } : 'user'
                             }
                         };
-
-                        // Get user media based on the constraints
                         return navigator.mediaDevices.getUserMedia(constraints);
                     } else {
                         throw new Error('No video devices found.');
                     }
                 })
                 .then(stream => {
-                    // Set the video element's source to the camera stream
                     video.srcObject = stream;
-                    // Start detecting objects
+                    video.onloadedmetadata = () => {
+                        resizeOverlay();
+                        drawLoop();
+                    };
                     detectObjects();
                 })
                 .catch(error => {
                     console.error('Error accessing the camera:', error);
+                    detectedObjectsElement.innerHTML = `
+                        <div class="no-detection">
+                            <div class="icon">📷</div>
+                            <p>Camera access denied.<br>Please allow camera permissions.</p>
+                        </div>
+                    `;
                 });
         }
 
-        // Function to detect objects in the camera feed
+        function resizeOverlay() {
+            const rect = video.getBoundingClientRect();
+            overlay.width = rect.width;
+            overlay.height = rect.height;
+        }
+        window.addEventListener('resize', resizeOverlay);
+
+        function drawLoop() {
+            ctx.clearRect(0, 0, overlay.width, overlay.height);
+            
+            currentDetections.forEach(det => {
+                const { bbox, class: className, confidence, harvestability } = det;
+                // YOLO format: [x_center, y_center, width, height]
+                const [xCenter, yCenter, bboxWidth, bboxHeight] = bbox;
+                
+                // Convert from center format to corner format
+                const x1 = xCenter - bboxWidth / 2;
+                const y1 = yCenter - bboxHeight / 2;
+                const x2 = xCenter + bboxWidth / 2;
+                const y2 = yCenter + bboxHeight / 2;
+                
+                // Scale bbox to overlay size
+                const scaleX = overlay.width / video.videoWidth;
+                const scaleY = overlay.height / video.videoHeight;
+                const sx1 = x1 * scaleX;
+                const sy1 = y1 * scaleY;
+                const sx2 = x2 * scaleX;
+                const sy2 = y2 * scaleY;
+                const boxWidth = sx2 - sx1;
+                const boxHeight = sy2 - sy1;
+                
+                const color = harvestability.color;
+                
+                // Draw bounding box
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 3;
+                ctx.strokeRect(sx1, sy1, boxWidth, boxHeight);
+                
+                // Draw corner accents
+                const cornerLen = 15;
+                ctx.lineWidth = 4;
+                // Top-left
+                ctx.beginPath();
+                ctx.moveTo(sx1, sy1 + cornerLen);
+                ctx.lineTo(sx1, sy1);
+                ctx.lineTo(sx1 + cornerLen, sy1);
+                ctx.stroke();
+                // Top-right
+                ctx.beginPath();
+                ctx.moveTo(sx2 - cornerLen, sy1);
+                ctx.lineTo(sx2, sy1);
+                ctx.lineTo(sx2, sy1 + cornerLen);
+                ctx.stroke();
+                // Bottom-left
+                ctx.beginPath();
+                ctx.moveTo(sx1, sy2 - cornerLen);
+                ctx.lineTo(sx1, sy2);
+                ctx.lineTo(sx1 + cornerLen, sy2);
+                ctx.stroke();
+                // Bottom-right
+                ctx.beginPath();
+                ctx.moveTo(sx2 - cornerLen, sy2);
+                ctx.lineTo(sx2, sy2);
+                ctx.lineTo(sx2, sy2 - cornerLen);
+                ctx.stroke();
+                
+                // Draw label background
+                const ripeness = className.split(' ')[0];
+                const label = `${ripeness} ${Math.round(confidence * 100)}%`;
+                ctx.font = 'bold 14px Segoe UI';
+                const textWidth = ctx.measureText(label).width;
+                const labelHeight = 24;
+                
+                ctx.fillStyle = color;
+                ctx.fillRect(sx1, sy1 - labelHeight, textWidth + 16, labelHeight);
+                
+                // Draw label text
+                ctx.fillStyle = 'white';
+                ctx.fillText(label, sx1 + 8, sy1 - 7);
+            });
+            
+            requestAnimationFrame(drawLoop);
+        }
+
         function detectObjects() {
             setInterval(() => {
-                const canvas = document.createElement('canvas');
-                canvas.width = video.videoWidth;
-                canvas.height = video.videoHeight;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                const imageData = canvas.toDataURL('image/jpeg');
+                const tempCanvas = document.createElement('canvas');
+                tempCanvas.width = video.videoWidth;
+                tempCanvas.height = video.videoHeight;
+                const tempCtx = tempCanvas.getContext('2d');
+                tempCtx.drawImage(video, 0, 0, tempCanvas.width, tempCanvas.height);
+                const imageData = tempCanvas.toDataURL('image/jpeg');
 
-                // Send image data to the server for object detection
                 fetch('/detect_objects', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ image_data: imageData }),
                 })
                 .then(response => response.json())
                 .then(data => {
-                    // Clear previous detected objects
+                    currentDetections = data;
+                    
+                    if (data.length === 0) {
+                        detectedObjectsElement.innerHTML = `
+                            <div class="no-detection">
+                                <div class="icon">🔍</div>
+                                <p>No banana detected yet.<br>Point your camera at a banana.</p>
+                            </div>
+                        `;
+                        return;
+                    }
+
                     detectedObjectsElement.innerHTML = '';
-
-                    // Process the detected objects data returned from the server
                     data.forEach(object => {
-                        const { class: className, bbox, confidence } = object;
+                        const { class: className, confidence, harvestability } = object;
+                        const ripeness = className.split(' ')[0];
+                        const fruitName = className.split(' ').slice(1).join(' ') || 'Banana';
 
-                        // Extract raw/ripe status from class name
-                        const rawRipe = className.split(' ')[0];
-
-                        // Extract fruit name from class name
-                        const fruitName = className.split(' ')[1];
-
-                        // Create a paragraph element for each detected object
-                        const paragraph = document.createElement('p');
-                        paragraph.innerHTML = `<strong>Name of fruit:</strong> ${fruitName}<br><strong>Raw/Ripe:</strong> ${rawRipe}<br><strong>Confidence:</strong> ${Math.round(confidence * 100)}%`;
-
-                        // Append paragraph to the container
-                        detectedObjectsElement.appendChild(paragraph);
+                        const item = document.createElement('div');
+                        item.className = 'detection-item';
+                        item.innerHTML = `
+                            <div class="fruit-name">🍌 ${fruitName}</div>
+                            <div class="info-row">
+                                <span class="label">Ripeness:</span>
+                                <span class="value">${ripeness}</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="label">Confidence:</span>
+                                <span class="value">${Math.round(confidence * 100)}%</span>
+                            </div>
+                            <div class="harvestability-badge" style="background-color: ${harvestability.color};">
+                                ${harvestability.status}
+                            </div>
+                            <div class="recommendation">
+                                📋 ${harvestability.recommendation}
+                            </div>
+                        `;
+                        detectedObjectsElement.appendChild(item);
                     });
                 })
                 .catch(error => {
                     console.error('Error detecting objects:', error);
                 });
-            }, 1000); // Adjust the interval as needed
+            }, 1000);
         }
 
-        // Initialize camera and start object detection
         initializeCamera();
     </script>
 </body>
