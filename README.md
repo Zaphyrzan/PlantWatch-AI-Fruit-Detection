@@ -155,8 +155,20 @@ Output: List of (class, confidence, bbox, recommendation)
 ### Prerequisites
 
 - Python 3.8+
-- Webcam/Camera
+- Webcam/Camera (front and/or back camera supported)
 - pip package manager
+
+### Dependencies
+
+This project requires the following Python packages:
+
+| Package | Purpose |
+|---------|----------|
+| `Flask` | Web framework for the backend server |
+| `ultralytics` | YOLOv8 deep learning model |
+| `opencv-python` | Computer vision and image processing |
+| `numpy` | Numerical computing |
+| `Pillow` | Image manipulation |
 
 ### Setup
 
@@ -181,6 +193,8 @@ python app_4.py
 ```
 
 Open http://127.0.0.1:5000 in your browser.
+
+> **📱 Mobile Access**: You can also access the app from your phone using the network URL (e.g., `http://192.168.x.x:5000`) when connected to the same network. The app supports switching between front and back cameras.
 
 ---
 

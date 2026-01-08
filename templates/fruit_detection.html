@@ -182,6 +182,39 @@
             50% { opacity: 0.5; }
         }
 
+        .camera-controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+            justify-content: center;
+        }
+        .camera-switch-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .camera-switch-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(17, 153, 142, 0.4);
+        }
+        .camera-switch-btn:active {
+            transform: translateY(0);
+        }
+        .camera-switch-btn:disabled {
+            background: #888;
+            cursor: not-allowed;
+            transform: none;
+        }
+
         /* Responsive Design */
         @media screen and (max-width: 900px) {
             .main-content {
@@ -213,7 +246,12 @@
                 </div>
                 <div class="status-indicator">
                     <span class="status-dot"></span>
-                    <span>Camera Active - Scanning...</span>
+                    <span id="camera-status">Camera Active - Scanning...</span>
+                </div>
+                <div class="camera-controls">
+                    <button id="switch-camera-btn" class="camera-switch-btn" onclick="switchCamera()">
+                        🔄 Switch Camera
+                    </button>
                 </div>
             </div>
             
@@ -237,41 +275,142 @@
         const overlay = document.getElementById('overlay');
         const ctx = overlay.getContext('2d');
         const detectedObjectsElement = document.getElementById('detected-objects');
+        const switchBtn = document.getElementById('switch-camera-btn');
+        const cameraStatus = document.getElementById('camera-status');
         let currentDetections = [];
+        let currentStream = null;
+        let useFrontCamera = false; // false = back/environment camera, true = front/user camera
+        let availableCameras = [];
+        let currentCameraIndex = 0;
+        let detectionInterval = null;
 
-        function initializeCamera() {
-            navigator.mediaDevices.enumerateDevices()
-                .then(devices => {
-                    const videoDevices = devices.filter(device => device.kind === 'videoinput');
-                    if (videoDevices.length > 0) {
-                        const backCamera = videoDevices.find(device => device.label.toLowerCase().includes('back'));
-                        const constraints = {
-                            video: {
-                                facingMode: backCamera ? { exact: 'environment' } : 'user'
-                            }
-                        };
-                        return navigator.mediaDevices.getUserMedia(constraints);
-                    } else {
-                        throw new Error('No video devices found.');
+        // Get list of available cameras
+        async function getAvailableCameras() {
+            try {
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                availableCameras = devices.filter(device => device.kind === 'videoinput');
+                console.log('Available cameras:', availableCameras.length);
+                
+                // Update button visibility based on camera count
+                if (availableCameras.length <= 1) {
+                    switchBtn.style.display = 'none';
+                } else {
+                    switchBtn.style.display = 'inline-flex';
+                }
+                return availableCameras;
+            } catch (error) {
+                console.error('Error enumerating devices:', error);
+                return [];
+            }
+        }
+
+        // Stop all tracks from current stream
+        function stopCurrentStream() {
+            if (currentStream) {
+                currentStream.getTracks().forEach(track => track.stop());
+                currentStream = null;
+            }
+        }
+
+        // Switch between front and back camera
+        async function switchCamera() {
+            switchBtn.disabled = true;
+            switchBtn.textContent = '⏳ Switching...';
+            
+            try {
+                stopCurrentStream();
+                
+                // Toggle camera
+                useFrontCamera = !useFrontCamera;
+                
+                // If we have device IDs, use them for more reliable switching
+                if (availableCameras.length > 1) {
+                    currentCameraIndex = (currentCameraIndex + 1) % availableCameras.length;
+                }
+                
+                await startCamera();
+                
+                // Update button and status text
+                const cameraType = useFrontCamera ? 'Front' : 'Back';
+                cameraStatus.textContent = `${cameraType} Camera Active - Scanning...`;
+                
+            } catch (error) {
+                console.error('Error switching camera:', error);
+                // Try to recover by using any available camera
+                useFrontCamera = !useFrontCamera;
+                await startCamera();
+            } finally {
+                switchBtn.disabled = false;
+                switchBtn.textContent = '🔄 Switch Camera';
+            }
+        }
+
+        // Start camera with current settings
+        async function startCamera() {
+            let constraints;
+            
+            // Try using deviceId first if available
+            if (availableCameras.length > 1 && availableCameras[currentCameraIndex].deviceId) {
+                constraints = {
+                    video: {
+                        deviceId: { exact: availableCameras[currentCameraIndex].deviceId }
                     }
-                })
-                .then(stream => {
-                    video.srcObject = stream;
-                    video.onloadedmetadata = () => {
-                        resizeOverlay();
-                        drawLoop();
-                    };
-                    detectObjects();
-                })
-                .catch(error => {
-                    console.error('Error accessing the camera:', error);
-                    detectedObjectsElement.innerHTML = `
-                        <div class="no-detection">
-                            <div class="icon">📷</div>
-                            <p>Camera access denied.<br>Please allow camera permissions.</p>
-                        </div>
-                    `;
-                });
+                };
+            } else {
+                // Fallback to facingMode
+                constraints = {
+                    video: {
+                        facingMode: useFrontCamera ? 'user' : { ideal: 'environment' }
+                    }
+                };
+            }
+            
+            try {
+                currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+                video.srcObject = currentStream;
+                
+                video.onloadedmetadata = () => {
+                    resizeOverlay();
+                };
+                
+                return true;
+            } catch (error) {
+                console.error('Error with preferred camera, trying fallback:', error);
+                // Fallback: try any camera
+                currentStream = await navigator.mediaDevices.getUserMedia({ video: true });
+                video.srcObject = currentStream;
+                return true;
+            }
+        }
+
+        async function initializeCamera() {
+            try {
+                // First, get list of available cameras
+                await getAvailableCameras();
+                
+                // Try to start with back camera first (environment)
+                useFrontCamera = false;
+                await startCamera();
+                
+                video.onloadedmetadata = () => {
+                    resizeOverlay();
+                    drawLoop();
+                };
+                
+                // Update camera list after getting permission (labels are now available)
+                await getAvailableCameras();
+                
+                detectObjects();
+                
+            } catch (error) {
+                console.error('Error accessing the camera:', error);
+                detectedObjectsElement.innerHTML = `
+                    <div class="no-detection">
+                        <div class="icon">📷</div>
+                        <p>Camera access denied.<br>Please allow camera permissions.</p>
+                    </div>
+                `;
+            }
         }
 
         function resizeOverlay() {
